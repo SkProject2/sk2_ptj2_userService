@@ -37,6 +37,10 @@ public class UserEntity implements UserDetails {
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     private boolean enable;
 
+    public String getName(){
+        return userName;
+    }
+
 
     @Builder
     public UserEntity(String email, String userName, String password, String hp, String address, String roles, boolean enable) {

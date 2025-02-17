@@ -102,7 +102,7 @@ public class UserService {
         UserEntity userEntity = userRepository.findByEmail(email).orElseThrow(() -> new IllegalArgumentException("사용자 오류") );
         return UserDetailDto.builder()
                 .email(userEntity.getEmail())
-                .userName(userEntity.getUsername())
+                .userName(userEntity.getName())
                 .password(userEntity.getPassword())
                 .hp(userEntity.getHp())
                 .address(userEntity.getAddress())
