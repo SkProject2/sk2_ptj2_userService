@@ -1,0 +1,74 @@
+name: userService CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # 잡 전체에 대한 이름 (custom 가능)
+  gateway-CICD:
+    # ubuntu linux 준비 -> 해장 작업이 진행되는 베이스 OS 지정
+    runs-on: ubuntu-latest
+    # 개별 작업 단계 지정
+    steps:
+      - name: Github Repository 내 파일들 checkout(불러오기) 수행
+        uses: actions/checkout@v4
+
+      - name: JDK 17 버전 설치
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin' # See 'Supported distributions' for available options
+          java-version: '17'
+
+      - name: application.properties 동적 생성
+        run: |
+          mkdir -p ./src/main/resources/
+          echo "${{ secrets.USERSERVICE_APPLICATION_PRO }}" > ./src/main/resources/application.properties
+          ls ./src/main/resources/
+
+      - name: 단위 테스트 및 빌드
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean build
+          pwd
+          ls
+          ls ./build/libs
+
+
+      - name: 관리상 빌드된 결과물의 이름을 변경 처리
+        run: |
+          mv ./build/libs/*SNAPSHOT.jar ./run.jar
+          ls
+
+      - name: EC2에 jar파일 업로드
+        uses: appleboy/scp-action@v0.1.7
+
+        with:
+          host: ${{ secrets.USERSERVICE_EC2_HOST }}
+          username: ${{ secrets.USERSERVICE_EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          source: run.jar
+          target: /home/ubuntu/miniProject2/userService/demo
+
+      # EC2 접속
+      - name: SSH로 ec2에 접속 후, 서버 가동
+        uses: appleboy/ssh-action@v1.2.0
+
+        with:
+          host: ${{ secrets.USERSERVICE_EC2_HOST }}
+          username: ${{ secrets.USERSERVICE_EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script_stop: true
+          script: |
+            ls -l /home/ubuntu/miniProject2/userService/demo/
+            mv /home/ubuntu/miniProject2/userService/demo/run.jar /home/ubuntu/miniProject2/userService/run.jar
+            cd /home/ubuntu/miniProject2/userService
+            fuser -k -n tcp 8081 || true
+            nohup java -jar run.jar > ./output.log 2>&1 &
+            rm -rf /home/ubuntu/miniProject2/userService/demo
+            
+            
